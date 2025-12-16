@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-5 mb-4 bg-white rounded-3 shadow">
+    <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold text-primary">Secure Online Voting</h1>
+        <p class="col-md-8 fs-4">Welcome to VoteSecure Lite, the safe and fair platform for digital ballot handling. 
+        Register now to cast your vote for your favorite candidate.</p>
+        
+        {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg" type="button">Get Started</a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg" type="button">Login</a>
+        {% else %}
+            <a href="{{ url_for('vote') }}" class="btn btn-success btn-lg" type="button">Go to Ballot</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row align-items-md-stretch">
+    <div class="col-md-6">
+        <div class="h-100 p-5 text-white bg-dark rounded-3">
+            <h2>Fairness First</h2>
+            <p>Our system ensures one person, one vote. Integrity is our top priority.</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="h-100 p-5 bg-secondary text-white border rounded-3">
+            <h2>Secure Processing</h2>
+            <p>Votes are processed securely and results are tabulated instantly.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Admin Dashboard</h2>
+        <span class="badge bg-danger">ADMIN ACCESS</span>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">Current Standings</div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Candidate Name</th>
+                                <th>Votes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in candidates %}
+                            <tr>
+                                <td>{{ candidate.id }}</td>
+                                <td>{{ candidate.name }}</td>
+                                <td>{{ candidate.vote_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">Danger Zone</div>
+                <div class="card-body">
+                    <p>Resetting the election will clear all votes and allow users to vote again.</p>
+                    <form method="POST" action="{{ url_for('admin_reset') }}"
+                        onsubmit="return confirm('Are you sure you want to reset the election? This cannot be undone.');">
+                        <button type="submit" class="btn btn-danger">Reset Election</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
