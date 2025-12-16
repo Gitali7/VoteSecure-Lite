@@ -1,7 +1,12 @@
 import os
-from flask import Flask, render_template, redirect, url_for, flash, request
+from flask import Flask, render_template, redirect, url_for, flash, request, session
+import smtplib
+import ssl
+import random
+import string
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from models import db, User, Candidate
+import re
 
 # Configuration
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -12,6 +17,10 @@ def create_app():
     app.config['SECRET_KEY'] = 'dev-secret-key-change-in-production' # In a real app, use environment variable
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(BASE_DIR, DB_NAME)}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # MOCK EMAIL STORAGE
+    global MOCK_INBOX
+    MOCK_INBOX = [] 
 
     # Initialize extensions
     db.init_app(app)
@@ -24,7 +33,46 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
 
+    def send_otp(email, otp):
+        """Stores email in internal mock inbox."""
+        print(f"\n[DEBUG] Sending OTP {otp} to {email} (Stored in Mock Inbox)\n")
+        
+        email_data = {
+            "to": email,
+            "subject": "Verification Code",
+            "body": f"Your OTP code is: {otp}",
+            "time": "Just now"
+        }
+        MOCK_INBOX.append(email_data)
+        return True
+
+    def validate_password(password):
+        """
+        Validates password complexity:
+        - At least 8 characters
+        - At least 1 uppercase
+        - At least 1 lowercase
+        - At least 1 number
+        - At least 1 special char
+        """
+        if len(password) < 6:
+            return False, "Password must be at least 6 characters long."
+        if not re.search(r"[a-z]", password):
+            return False, "Password must contain at least one lowercase letter."
+        if not re.search(r"[A-Z]", password):
+            return False, "Password must contain at least one uppercase letter."
+        if not re.search(r"\d", password):
+            return False, "Password must contain at least one number."
+        if not re.search(r"[ !@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?]", password):
+            return False, "Password must contain at least one special character."
+        return True, ""
+
     # --- Routes ---
+
+    @app.route('/inbox')
+    def inbox():
+        """Mock Email Inbox View."""
+        return render_template('inbox.html', emails=list(reversed(MOCK_INBOX)))
 
     @app.route('/')
     def index():
@@ -33,36 +81,86 @@ def create_app():
 
     @app.route('/register', methods=['GET', 'POST'])
     def register():
-        """User registration route."""
+        """User registration route with OTP."""
         if current_user.is_authenticated:
             return redirect(url_for('vote'))
 
         if request.method == 'POST':
             username = request.form.get('username')
             password = request.form.get('password')
+            email = request.form.get('email')
 
-            if not username or not password:
+            if not username or not password or not email:
                 flash('Please fill in all fields.', 'error')
+                return redirect(url_for('register'))
+
+            # Password Validation
+            is_valid, error_msg = validate_password(password)
+            if not is_valid:
+                flash(error_msg, 'error')
                 return redirect(url_for('register'))
 
             if User.query.filter_by(username=username).first():
                 flash('Username already exists.', 'error')
                 return redirect(url_for('register'))
-
-            new_user = User(username=username)
-            new_user.set_password(password)
             
-            # For demonstration: if username is 'admin', verify as admin
-            if username.lower() == 'admin':
-                new_user.is_admin = True
+            if User.query.filter_by(email=email).first():
+                flash('Email already registered.', 'error')
+                return redirect(url_for('register'))
 
-            db.session.add(new_user)
-            db.session.commit()
+            # Generate OTP
+            otp = ''.join(random.choices(string.digits, k=6))
             
-            flash('Registration successful! Please login.', 'success')
-            return redirect(url_for('login'))
+            # Send OTP
+            if send_otp(email, otp):
+                # Store in session
+                session['register_data'] = {
+                    'username': username,
+                    'password': password,
+                    'email': email,
+                    'otp': otp
+                }
+                flash('OTP sent to your email. Please verify.', 'info')
+                return redirect(url_for('verify_otp'))
+            else:
+                flash('Failed to send email. Check console/logs.', 'error')
+                return redirect(url_for('register'))
 
         return render_template('register.html')
+
+    @app.route('/verify_otp', methods=['GET', 'POST'])
+    def verify_otp():
+        """OTP Verification Route."""
+        if 'register_data' not in session:
+            return redirect(url_for('register'))
+        
+        if request.method == 'POST':
+            user_otp = request.form.get('otp')
+            stored_data = session['register_data']
+            
+            if user_otp == stored_data['otp']:
+                # Verification success, create user
+                new_user = User(
+                    username=stored_data['username'],
+                    email=stored_data['email']
+                )
+                new_user.set_password(stored_data['password'])
+                
+                if stored_data['username'].lower() == 'admin':
+                    new_user.is_admin = True
+                
+                db.session.add(new_user)
+                db.session.commit()
+                
+                # Clear session
+                session.pop('register_data', None)
+                
+                flash('Registration verified and successful! Please login.', 'success')
+                return redirect(url_for('login'))
+            else:
+                flash('Invalid OTP. Please try again.', 'error')
+                
+        return render_template('verify_otp.html')
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():

@@ -8,13 +8,26 @@
             <div class="card-body">
                 <form method="POST">
                     <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
                         <input type="text" class="form-control" id="username" name="username" required>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
                         <input type="password" class="form-control" id="password" name="password" required>
-                        <div class="form-text">Choose a strong password to keep your vote secure.</div>
+                        <div class="form-text">
+                            Password must have:
+                            <ul style="margin: 0; padding-left: 20px;">
+                                <li>At least 6 characters</li>
+                                <li>At least 1 uppercase letter (A-Z)</li>
+                                <li>At least 1 lowercase letter (a-z)</li>
+                                <li>At least 1 number (0-9)</li>
+                                <li>At least 1 special character (!@#$...)</li>
+                            </ul>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-success w-100">Register</button>
                 </form>
